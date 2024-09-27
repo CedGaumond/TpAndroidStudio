@@ -21,13 +21,13 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import com.example.tp1.Model.ModelBlackJack
+import com.example.tp1.Model.ModelTable
 import com.example.tp1.R
 
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ViewBlackJack(viewModel: ModelBlackJack = ModelBlackJack(), modifier: Modifier = Modifier) {
+fun ViewBlackJack(viewModel: ModelTable = ModelTable(), modifier: Modifier = Modifier) {
 
     Box(modifier = modifier.fillMaxSize()) {
 

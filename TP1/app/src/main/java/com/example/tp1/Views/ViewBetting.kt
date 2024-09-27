@@ -22,13 +22,13 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import com.example.tp1.Model.ModelBlackJack
+import com.example.tp1.Model.ModelTable
 import com.example.tp1.R
 
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ViewBetting(modifier: Modifier = Modifier, viewModel: ModelBlackJack = ModelBlackJack()) {
+fun ViewBetting(modifier: Modifier = Modifier, viewModel: ModelTable = ModelTable()) {
     Box(modifier = modifier.fillMaxSize()) {
         Scaffold(
             topBar = {
