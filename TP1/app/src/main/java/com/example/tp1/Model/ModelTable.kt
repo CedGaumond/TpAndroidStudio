@@ -1,8 +1,14 @@
 package com.example.tp1.Model
 
 import android.util.Log
+import androidx.compose.foundation.Image
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import coil.compose.rememberAsyncImagePainter
+import coil.decode.SvgDecoder
+import coil.request.ImageRequest
 import com.example.tp1.Model.api.Card
 import com.example.tp1.Model.api.DeckOfCard
 import com.example.tp1.Model.repository.ApiRepository
@@ -74,6 +80,8 @@ class ModelTable : ViewModel() {
             }
         }
     }
+
+
 
     private suspend fun fetchCardForPlayer() {
         val card = fetchCard() ?: return

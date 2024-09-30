@@ -51,7 +51,7 @@ android {
 
 dependencies {
     implementation(libs.coil.compose)
-    implementation(libs.coil) // Use the latest version
+    implementation(libs.coil)
     implementation(libs.coil.svg)
     implementation(libs.gson)
     implementation(libs.retrofit)
@@ -65,6 +65,7 @@ dependencies {
     implementation(libs.androidx.ui.tooling.preview)
     implementation(libs.androidx.material3)
     implementation(libs.androidx.navigation.compose)
+    implementation(libs.volley)
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)

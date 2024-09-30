@@ -1,5 +1,14 @@
 package com.example.tp1.Model
+import androidx.compose.foundation.Image
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
+import coil.compose.rememberAsyncImagePainter
+import coil.decode.SvgDecoder
+import coil.request.ImageRequest
+
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 
@@ -41,6 +50,10 @@ class ModelBetting : ViewModel() {
             }
         }
     }
+
+
+
+
 
     fun resetBet() {
         _balance.value += _totalBet.value - 1

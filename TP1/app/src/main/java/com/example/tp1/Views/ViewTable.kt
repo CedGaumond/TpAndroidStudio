@@ -1,20 +1,24 @@
 package com.example.tp1.Views
 
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
-import coil.compose.rememberImagePainter
+import coil.compose.rememberAsyncImagePainter
+import coil.decode.SvgDecoder
+import coil.request.ImageRequest
 import com.example.tp1.Model.GameState
 import com.example.tp1.Model.ModelBetting
 import com.example.tp1.Model.ModelTable
@@ -34,7 +38,6 @@ fun ViewBlackJack(
     val dealerCards by modelTable.cardsDealer.collectAsState()
 
     Box(modifier = Modifier.fillMaxSize()) {
-        // Background Image
         Image(
             painter = painterResource(id = R.drawable.background),
             contentDescription = "Demo Background",
@@ -42,7 +45,6 @@ fun ViewBlackJack(
             modifier = Modifier.fillMaxSize()
         )
 
-        // Scaffold with UI Elements
         Scaffold(
             containerColor = Color.Transparent,
             topBar = {
@@ -91,7 +93,6 @@ fun ViewBlackJack(
                 }
             },
         ) { innerPadding ->
-            // Content Padding
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -109,22 +110,12 @@ fun ViewBlackJack(
                         modifier = Modifier.padding(top = 16.dp),
                         style = androidx.compose.ui.text.TextStyle(fontSize = 30.sp)
                     )
-                    LazyRow(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        modifier = Modifier.fillMaxWidth().padding(16.dp)
+
+                    Box(
+                        modifier = Modifier.fillMaxWidth(),
+                        contentAlignment = Alignment.Center
                     ) {
-                        items(playerCards.size) { index ->
-                            val card = playerCards[index]
-                            val imageUrl = "https://420c56.drynish.synology.me${card.imageUrl}"
-                            if (card.imageUrl.isNotEmpty()) {
-                                Image(
-                                    painter = rememberImagePainter(imageUrl),
-                                    contentDescription = card.codeCarte,
-                                    modifier = Modifier.size(100.dp),
-                                    contentScale = ContentScale.Fit
-                                )
-                            }
-                        }
+                        showPlayerCards(modelTable)
                     }
 
                     // Dealer's Cards
@@ -133,27 +124,16 @@ fun ViewBlackJack(
                         modifier = Modifier.padding(top = 16.dp),
                         style = androidx.compose.ui.text.TextStyle(fontSize = 30.sp)
                     )
-                    LazyRow(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        modifier = Modifier.fillMaxWidth().padding(16.dp)
+
+                    Box(
+                        modifier = Modifier.fillMaxWidth(),
+                        contentAlignment = Alignment.Center
                     ) {
-                        items(dealerCards.size) { index ->
-                            val card = dealerCards[index]
-                            val imageUrl = "https://420c56.drynish.synology.me${card.imageUrl}"
-                            if (card.imageUrl.isNotEmpty()) {
-                                Image(
-                                    painter = rememberImagePainter(imageUrl),
-                                    contentDescription = card.codeCarte,
-                                    modifier = Modifier.size(100.dp),
-                                    contentScale = ContentScale.Fit
-                                )
-                            }
-                        }
+                        showDealerCards(modelTable)
                     }
 
                     Spacer(modifier = Modifier.weight(1f))
 
-                    // Game Action Buttons
                     if (gameState == GameState.NOT_STARTED || gameState == GameState.GAME_OVER) {
                         OutlinedButton(
                             onClick = { modelTable.startGame() },
@@ -195,6 +175,66 @@ fun ViewBlackJack(
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+fun showPlayerCards(modelTable: ModelTable) {
+    val playerCards by modelTable.cardsPlayer.collectAsState()
+
+    Row(
+        modifier = Modifier
+            .horizontalScroll(rememberScrollState())
+            .padding(horizontal = 16.dp), // Optional padding
+        horizontalArrangement = Arrangement.Center // Center cards in the row
+    ) {
+        for ((index, card) in playerCards.withIndex()) {
+            val painter = rememberAsyncImagePainter(
+                model = ImageRequest.Builder(LocalContext.current)
+                    .decoderFactory(SvgDecoder.Factory())
+                    .data("https://420c56.drynish.synology.me${card.imageUrl}")
+                    .size(800, 600)
+                    .build()
+            )
+            Image(
+                painter = painter,
+                contentDescription = null,
+                modifier = Modifier
+                    .size(120.dp) // Adjust size as needed
+                    .offset(x = (index * -20).dp) // Adjust offset for overlapping effect
+            )
+        }
+    }
+}
+
+@Composable
+fun showDealerCards(modelTable: ModelTable) {
+    val dealerCards by modelTable.cardsDealer.collectAsState()
+
+    Row(
+        modifier = Modifier
+            .horizontalScroll(rememberScrollState())
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp), // Optional padding
+        horizontalArrangement = Arrangement.Center // Center cards in the row
+    ) {
+        for ((index, card) in dealerCards.withIndex()) {
+            val painter = rememberAsyncImagePainter(
+                model = ImageRequest.Builder(LocalContext.current)
+                    .decoderFactory(SvgDecoder.Factory())
+                    .data("https://420c56.drynish.synology.me${card.imageUrl}")
+                    .size(900, 900)
+                    .build()
+            )
+
+            Image(
+                painter = painter,
+                contentDescription = null,
+                modifier = Modifier
+                    .size(120.dp) // Adjust size as needed
+                    .offset(x = (index * -90).dp) // Adjust offset for overlapping effect
+            )
         }
     }
 }
