@@ -15,6 +15,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.rememberNavController
+import com.example.tp1.Model.ModelBetting
+import com.example.tp1.Model.ModelTable
 import com.example.tp1.Views.ViewBetting
 import com.example.tp1.Views.ViewBlackJack
 import com.example.tp1.ui.theme.TP1Theme
@@ -25,13 +31,30 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             TP1Theme {
-                Scaffold(modifier = Modifier.fillMaxSize()) { paddingValues ->
-                    ViewBetting(modifier = Modifier.padding(paddingValues))
-                }
+                route()
                 }
             }
         }
     }
+
+
+@Composable
+fun route(){
+    val modelBetting: ModelBetting = viewModel()
+    val modelTable : ModelTable = viewModel()
+    val navController = rememberNavController()
+    NavHost(navController, startDestination = "Betting") {
+        composable(route = "Betting") {
+
+            ViewBetting(navController = navController, modelBetting)
+        }
+        composable(route = "Table") { backStackEntry ->
+            val miseDepart = backStackEntry.arguments?.getString("miseDepart")?.toIntOrNull()
+            ViewBlackJack(modelTable ,navController = navController, modelBetting)
+        }
+    }
+
+}
 
 
 
