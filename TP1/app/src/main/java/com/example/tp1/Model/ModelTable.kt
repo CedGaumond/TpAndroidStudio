@@ -35,6 +35,9 @@ class ModelTable : ViewModel() {
     private val _gameState = MutableStateFlow(GameState.NOT_STARTED)
     val gameState: StateFlow<GameState> get() = _gameState
 
+    private val _winner = MutableStateFlow<String?>(null)
+    val winner: StateFlow<String?> get() = _winner
+
     private var isDeckFetched = false
 
     init {
@@ -67,6 +70,7 @@ class ModelTable : ViewModel() {
     }
 
     fun resetGame() {
+        _winner.value = null
         _cardsPlayer.value = emptyList()
         _cardsDealer.value = emptyList()
         _gameState.value = GameState.NOT_STARTED
@@ -175,12 +179,16 @@ class ModelTable : ViewModel() {
         val dealerScore = calculateScore(_cardsDealer.value)
 
         when {
-            playerScore > 21 -> Log.d("Game Result", "Player Busts! Dealer Wins!")
-            dealerScore > 21 -> Log.d("Game Result", "Dealer Busts! Player Wins!")
-            playerScore > dealerScore -> Log.d("Game Result", "Player Wins!")
-            dealerScore > playerScore -> Log.d("Game Result", "Dealer Wins!")
-            else -> Log.d("Game Result", "It's a Tie!")
+            playerScore > 21 -> _winner.value = "Dealer"
+            dealerScore > 21 -> _winner.value = "Player"
+            playerScore > dealerScore -> _winner.value = "Player"
+            dealerScore > playerScore -> _winner.value = "Dealer"
+            else ->  _winner.value = "Tie"
         }
+    }
+
+    fun clearCards() {
+
     }
 }
 

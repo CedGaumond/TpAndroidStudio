@@ -1,13 +1,15 @@
 package com.example.tp1.Views
 
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -15,6 +17,8 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.unit.times
+import androidx.compose.ui.zIndex
 import androidx.navigation.NavController
 import coil.compose.rememberAsyncImagePainter
 import coil.decode.SvgDecoder
@@ -22,7 +26,9 @@ import coil.request.ImageRequest
 import com.example.tp1.Model.GameState
 import com.example.tp1.Model.ModelBetting
 import com.example.tp1.Model.ModelTable
+import com.example.tp1.Model.api.Card
 import com.example.tp1.R
+import kotlinx.coroutines.delay
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -34,8 +40,17 @@ fun ViewBlackJack(
     val bet by modelBetting.totalBet.collectAsState()
     val balance by modelBetting.balance.collectAsState()
     val gameState by modelTable.gameState.collectAsState()
-    val playerCards by modelTable.cardsPlayer.collectAsState()
-    val dealerCards by modelTable.cardsDealer.collectAsState()
+    val winner by modelTable.winner.collectAsState()
+    var showWinner by remember { mutableStateOf(false) }
+
+    LaunchedEffect(winner) {
+        winner?.let {
+            showWinner = true
+            delay(3000) // Show for 3 seconds
+            showWinner = false
+            modelTable.resetGame() // Reset the game state if necessary
+        }
+    }
 
     Box(modifier = Modifier.fillMaxSize()) {
         Image(
@@ -104,33 +119,17 @@ fun ViewBlackJack(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     modifier = Modifier.fillMaxSize()
                 ) {
-                    // Player's Cards
-                    Text(
-                        text = "Player's Cards:",
-                        modifier = Modifier.padding(top = 16.dp),
-                        style = androidx.compose.ui.text.TextStyle(fontSize = 30.sp)
+                    CardStack(
+                        cards = modelTable.cardsDealer.collectAsState().value,
+                        label = "Dealer's Cards"
                     )
 
-                    Box(
-                        modifier = Modifier.fillMaxWidth(),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        showPlayerCards(modelTable)
-                    }
+                    Spacer(modifier = Modifier.weight(1f))
 
-                    // Dealer's Cards
-                    Text(
-                        text = "Dealer's Cards:",
-                        modifier = Modifier.padding(top = 16.dp),
-                        style = androidx.compose.ui.text.TextStyle(fontSize = 30.sp)
+                    CardStack(
+                        cards = modelTable.cardsPlayer.collectAsState().value,
+                        label = "Player's Cards"
                     )
-
-                    Box(
-                        modifier = Modifier.fillMaxWidth(),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        showDealerCards(modelTable)
-                    }
 
                     Spacer(modifier = Modifier.weight(1f))
 
@@ -176,65 +175,86 @@ fun ViewBlackJack(
                 }
             }
         }
-    }
-}
 
-@Composable
-fun showPlayerCards(modelTable: ModelTable) {
-    val playerCards by modelTable.cardsPlayer.collectAsState()
-
-    Row(
-        modifier = Modifier
-            .horizontalScroll(rememberScrollState())
-            .padding(horizontal = 16.dp), // Optional padding
-        horizontalArrangement = Arrangement.Center // Center cards in the row
-    ) {
-        for ((index, card) in playerCards.withIndex()) {
-            val painter = rememberAsyncImagePainter(
-                model = ImageRequest.Builder(LocalContext.current)
-                    .decoderFactory(SvgDecoder.Factory())
-                    .data("https://420c56.drynish.synology.me${card.imageUrl}")
-                    .size(800, 600)
-                    .build()
-            )
-            Image(
-                painter = painter,
-                contentDescription = null,
+        // Winner popup
+        AnimatedVisibility(visible = showWinner) {
+            Box(
                 modifier = Modifier
-                    .size(120.dp) // Adjust size as needed
-                    .offset(x = (index * -20).dp) // Adjust offset for overlapping effect
-            )
+                    .size(300.dp)
+                    .background(Color.Black.copy(alpha = 0.7f), shape = MaterialTheme.shapes.medium)
+                    .padding(24.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = winner ?: "",
+                    style = MaterialTheme.typography.titleLarge.copy(color = Color.White),
+                    textAlign = TextAlign.Center
+                )
+            }
         }
     }
 }
 
 @Composable
-fun showDealerCards(modelTable: ModelTable) {
-    val dealerCards by modelTable.cardsDealer.collectAsState()
-
-    Row(
-        modifier = Modifier
-            .horizontalScroll(rememberScrollState())
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp), // Optional padding
-        horizontalArrangement = Arrangement.Center // Center cards in the row
+fun CardStack(cards: List<Card>, label: String) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = Modifier.fillMaxWidth()
     ) {
-        for ((index, card) in dealerCards.withIndex()) {
-            val painter = rememberAsyncImagePainter(
-                model = ImageRequest.Builder(LocalContext.current)
-                    .decoderFactory(SvgDecoder.Factory())
-                    .data("https://420c56.drynish.synology.me${card.imageUrl}")
-                    .size(900, 900)
-                    .build()
-            )
+        Text(
+            text = label,
+            style = MaterialTheme.typography.titleMedium,
+            modifier = Modifier.padding(bottom = 8.dp)
+        )
 
-            Image(
-                painter = painter,
-                contentDescription = null,
-                modifier = Modifier
-                    .size(120.dp) // Adjust size as needed
-                    .offset(x = (index * -90).dp) // Adjust offset for overlapping effect
-            )
+        // Create a Box to stack the cards on top of each other
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(180.dp)
+                .padding(horizontal = 16.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            cards.forEachIndexed { index, card ->
+                CardImage(
+                    card = card,
+                    index = index,
+                    totalCards = cards.size
+                )
+            }
         }
+    }
+}
+
+@Composable
+fun CardImage(card: Card, index: Int, totalCards: Int) {
+    val cardWidth = 120.dp
+    val cardHeight = 180.dp
+    val horizontalOffset = 30.dp // Adjust this value for more/less overlap
+
+    val painter = rememberAsyncImagePainter(
+        model = ImageRequest.Builder(LocalContext.current)
+            .decoderFactory(SvgDecoder.Factory())
+            .data("https://420c56.drynish.synology.me${card.imageUrl}")
+            .size(240, 360)
+            .build()
+    )
+
+    Box(
+        modifier = Modifier
+            .width(cardWidth)
+            .height(cardHeight)
+            .offset(x = index * horizontalOffset) // Apply horizontal offset for overlap
+            .zIndex(index.toFloat())
+            .drawBehind {
+                drawRect(Color.White)
+            }
+    ) {
+        Image(
+            painter = painter,
+            contentDescription = null,
+            contentScale = ContentScale.Crop,
+            modifier = Modifier.fillMaxSize()
+        )
     }
 }
