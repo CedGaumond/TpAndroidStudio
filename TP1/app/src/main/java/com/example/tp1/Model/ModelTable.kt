@@ -49,7 +49,7 @@ class ModelTable : ViewModel() {
 
         viewModelScope.launch {
             try {
-                val deck = repository.getPaquetCartes(6)
+                val deck = repository.getPaquetCartes(7)
                 _deckOfCard.value = deck
                 isDeckFetched = true
                 Log.d("Carte Restante", "Carte Restante : ${_deckOfCard.value?.cardLeft}")
@@ -187,8 +187,6 @@ class ModelTable : ViewModel() {
         }
     }
 
-    fun clearCards() {
 
-    }
 }
 
