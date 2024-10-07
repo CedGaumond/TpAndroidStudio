@@ -44,22 +44,21 @@ fun ViewBlackJack(
 
     var showWinner by remember { mutableStateOf(false) }
     var playerStayed by remember { mutableStateOf(false) }
-    var areCardsLoaded by remember { mutableStateOf(false) }
+    var isLoading by remember { mutableStateOf(true) }
 
+    // Start the game automatically if it's the first time playing
     LaunchedEffect(Unit) {
         if (gameState == GameState.NOT_STARTED) {
             modelTable.startGame()
         }
     }
 
+    // Update loading state based on card availability
     LaunchedEffect(cardsDealer, cardsPlayer) {
-        if (cardsDealer.isNotEmpty() && cardsPlayer.isNotEmpty()) {
-            areCardsLoaded = true
-        } else {
-            areCardsLoaded = false
-        }
+        isLoading = cardsDealer.isEmpty() && cardsPlayer.isEmpty()
     }
 
+    // Show winner dialog
     LaunchedEffect(winner) {
         if (winner != null) {
             showWinner = true
@@ -74,45 +73,33 @@ fun ViewBlackJack(
             modifier = Modifier.fillMaxSize()
         )
 
-        if (!areCardsLoaded) {
+        Scaffold(
+            containerColor = Color.Transparent,
+            topBar = {
+                // TopAppBar implementation...
+            },
+            bottomBar = {
+                // BottomAppBar implementation...
+            },
+        ) { innerPadding ->
             Box(
-                modifier = Modifier.fillMaxSize(),
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding),
                 contentAlignment = Alignment.Center
             ) {
-                CircularProgressIndicator()
-            }
-        } else {
-            Scaffold(
-                containerColor = Color.Transparent,
-                topBar = {
-                    // TopAppBar implementation...
-                },
-                bottomBar = {
-                    // BottomAppBar implementation...
-                },
-            ) { innerPadding ->
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(innerPadding),
-                    contentAlignment = Alignment.Center
+                Column(
+                    verticalArrangement = Arrangement.SpaceBetween,
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier.fillMaxSize()
                 ) {
-                    Column(
-                        verticalArrangement = Arrangement.SpaceBetween,
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        modifier = Modifier.fillMaxSize()
-                    ) {
-                        // Calculate scores
-                        val playerScore = modelTable.calculateScore(cardsPlayer)
-                        val dealerScore = modelTable.calculateScore(cardsDealer)
-
-                        // Show the dealer's card stack
+                    // Only show the card stacks if loading is done
+                    if (!isLoading) {
                         CardStack(
                             cards = cardsDealer,
                             label = "Cartes du croupier",
                             playerStayed = playerStayed,
-                            gameState = gameState,
-                            score = if (playerStayed) dealerScore else modelTable.calculateScore(cardsDealer.drop(1)) // Ignore the first card if player hasn't stayed
+                            gameState = gameState
                         )
 
                         Box(
@@ -122,19 +109,17 @@ fun ViewBlackJack(
                                 .background(Color.Black)
                         )
 
-                        // Show the player's card stack
                         CardStack(
                             cards = cardsPlayer,
                             label = "Vos Cartes",
                             playerStayed = playerStayed,
                             gameState = gameState,
-                            score = playerScore // Pass player's score
                         )
 
                         Spacer(modifier = Modifier.weight(1f))
 
                         // Action buttons for player
-                        if (gameState == GameState.PLAYER_TURN) {
+                        if (gameState != GameState.NOT_STARTED && gameState != GameState.GAME_OVER) {
                             Row(
                                 horizontalArrangement = Arrangement.SpaceEvenly,
                                 modifier = Modifier
@@ -165,65 +150,68 @@ fun ViewBlackJack(
                                 }
                             }
                         }
+                    } else {
+
+                        CircularProgressIndicator()
                     }
+                }
 
-                    // Winner dialog setup
-                    AnimatedVisibility(visible = showWinner) {
-                        Box(
+                // Winner dialog setup
+                AnimatedVisibility(visible = showWinner) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(Color.Black.copy(alpha = 0.7f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(
                             modifier = Modifier
-                                .fillMaxSize()
-                                .background(Color.Black.copy(alpha = 0.7f)),
-                            contentAlignment = Alignment.Center
+                                .width(300.dp)
+                                .background(Color.White, shape = MaterialTheme.shapes.medium)
+                                .padding(24.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.SpaceEvenly
                         ) {
-                            Column(
-                                modifier = Modifier
-                                    .width(300.dp)
-                                    .background(Color.White, shape = MaterialTheme.shapes.medium)
-                                    .padding(24.dp),
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                                verticalArrangement = Arrangement.SpaceEvenly
+                            Text(
+                                text = when (winner) {
+                                    "Player" -> "Joueur Gagne"
+                                    "Dealer" -> "Croupier Gagne"
+                                    else -> "Match Nul"
+                                },
+                                style = MaterialTheme.typography.titleLarge.copy(color = Color.Black),
+                                textAlign = TextAlign.Center
+                            )
+
+                            Row(
+                                horizontalArrangement = Arrangement.SpaceEvenly,
+                                modifier = Modifier.fillMaxWidth()
                             ) {
-                                Text(
-                                    text = when (winner) {
-                                        "Player" -> "Joueur Gagne"
-                                        "Dealer" -> "Croupier Gagne"
-                                        else -> "Match Nul"
+                                OutlinedButton(
+                                    onClick = {
+                                        modelTable.resetGame()
+                                        playerStayed = false
+                                        modelTable.startGame()
+                                        showWinner = false
                                     },
-                                    style = MaterialTheme.typography.titleLarge.copy(color = Color.Black),
-                                    textAlign = TextAlign.Center
-                                )
-
-                                Row(
-                                    horizontalArrangement = Arrangement.SpaceEvenly,
-                                    modifier = Modifier.fillMaxWidth()
+                                    colors = ButtonDefaults.outlinedButtonColors(
+                                        containerColor = MaterialTheme.colorScheme.primary,
+                                        contentColor = MaterialTheme.colorScheme.onSecondary
+                                    )
                                 ) {
-                                    OutlinedButton(
-                                        onClick = {
-                                            modelTable.resetGame()
-                                            playerStayed = false
-                                            modelTable.startGame()
-                                            showWinner = false
-                                        },
-                                        colors = ButtonDefaults.outlinedButtonColors(
-                                            containerColor = MaterialTheme.colorScheme.primary,
-                                            contentColor = MaterialTheme.colorScheme.onSecondary
-                                        )
-                                    ) {
-                                        Text("Rejouer")
-                                    }
+                                    Text("Rejouer")
+                                }
 
-                                    OutlinedButton(
-                                        onClick = {
-                                            navController.navigate("Betting")
-                                            showWinner = false
-                                        },
-                                        colors = ButtonDefaults.outlinedButtonColors(
-                                            containerColor = MaterialTheme.colorScheme.primary,
-                                            contentColor = MaterialTheme.colorScheme.onSecondary
-                                        )
-                                    ) {
-                                        Text("Mise")
-                                    }
+                                OutlinedButton(
+                                    onClick = {
+                                        navController.navigate("Betting")
+                                        showWinner = false
+                                    },
+                                    colors = ButtonDefaults.outlinedButtonColors(
+                                        containerColor = MaterialTheme.colorScheme.primary,
+                                        contentColor = MaterialTheme.colorScheme.onSecondary
+                                    )
+                                ) {
+                                    Text("Mise")
                                 }
                             }
                         }
@@ -240,24 +228,15 @@ fun CardStack(
     label: String,
     playerStayed: Boolean,
     gameState: GameState,
-    score: Int,
     modifier: Modifier = Modifier
 ) {
     Column(
-        horizontalAlignment = Alignment.Start,
+        horizontalAlignment = Alignment.CenterHorizontally,
         modifier = modifier.fillMaxWidth()
     ) {
         Text(
             text = label,
             style = MaterialTheme.typography.titleMedium.copy(fontSize = 48.sp),
-            modifier = Modifier.padding(bottom = 8.dp)
-        )
-
-        // Display the score
-        Text(
-            text = "Score: $score",
-            color = Color.Red,
-            fontSize = 32.sp,
             modifier = Modifier.padding(bottom = 8.dp)
         )
 
@@ -268,11 +247,7 @@ fun CardStack(
             contentAlignment = Alignment.Center
         ) {
             if (cards.isEmpty()) {
-                if (gameState == GameState.PLAYER_TURN || gameState == GameState.DEALER_TURN) {
-                    Text("Tirer des cartes...")
-                } else {
-                    Text("Pas de cartes à afficher")
-                }
+                Text("Pas de cartes à afficher")
             } else {
                 cards.forEachIndexed { index, card ->
                     CardImage(
