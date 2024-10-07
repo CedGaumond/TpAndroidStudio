@@ -30,8 +30,6 @@ class ModelBetting : ViewModel() {
 
         when {
             newTotal < 1 || newTotal > 100 -> {
-
-
                 _errorMessage.value = "Votre mise doit être entre 1 et 100."
                 resetBet()
             }
@@ -50,11 +48,6 @@ class ModelBetting : ViewModel() {
             }
         }
     }
-
-
-
-
-
     fun resetBet() {
         _balance.value += _totalBet.value - 1
         _totalBet.value = 1
