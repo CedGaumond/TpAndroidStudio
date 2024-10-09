@@ -1,14 +1,8 @@
 package com.example.tp1.Model
 
 import android.util.Log
-import androidx.compose.foundation.Image
-import androidx.compose.runtime.Composable
-import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import coil.compose.rememberAsyncImagePainter
-import coil.decode.SvgDecoder
-import coil.request.ImageRequest
 import com.example.tp1.Model.api.Card
 import com.example.tp1.Model.api.DeckOfCard
 import com.example.tp1.Model.repository.ApiRepository
@@ -21,8 +15,8 @@ enum class GameState {
     PLAYER_TURN,
     DEALER_TURN,
     GAME_OVER,
-    CONTINUING
 }
+
 class ModelTable : ViewModel() {
     private val repository = ApiRepository()
     private val _deckOfCard = MutableStateFlow<DeckOfCard?>(null)
@@ -49,15 +43,58 @@ class ModelTable : ViewModel() {
 
         viewModelScope.launch {
             try {
-                val deck = repository.getPaquetCartes(7)
+                val deck = repository.getPaquetCartes(1)
                 _deckOfCard.value = deck
                 isDeckFetched = true
-                Log.d("Carte Restante", "Carte Restante : ${_deckOfCard.value?.cardLeft}")
+                Log.d("Deck", "Deck fetched: ${deck.cardLeft} cards left.")
             } catch (e: Exception) {
-
+                Log.e("Deck", "Error fetching deck: ${e.message}")
             }
         }
     }
+
+    private suspend fun checkAndFetchNewDeckIfNeeded() {
+
+        val deck = _deckOfCard.value
+        if (deck == null || deck.cardLeft <= 1) {
+            Log.d("ModelTable", "Deck is empty or not fetched, fetching a new deck.")
+            isDeckFetched = false
+            fetchDeckOfCard()
+        }
+    }
+
+    private suspend fun fetchCard(): Card? {
+        Log.e("ModelTable", "nbcards left ${_deckOfCard.value?.cardLeft}")
+
+        // Check if we need to fetch a new deck
+        checkAndFetchNewDeckIfNeeded()
+
+        val deck = _deckOfCard.value ?: return null // Ensure deck is not null
+        val deckId = deck.deckId // Get the UUID from the current deck
+
+        return try {
+            // Fetch a card from the deck
+            val response = repository.getCartes(deckId, 1) // Draw a card from the deck
+
+            if (response.cartes.isNullOrEmpty()) {
+                Log.e("ModelTable", "No cards returned in the response.")
+                return null
+            }
+
+
+            _deckOfCard.value = DeckOfCard(deckId, response.cartesRestantes)
+
+            response.cartes.firstOrNull()
+        } catch (e: Exception) {
+            Log.e("ModelTable", "Error fetching card: ${e.message}")
+            null
+        }
+    }
+
+
+
+
+
 
     fun startGame() {
         if (_deckOfCard.value == null) {
@@ -82,19 +119,19 @@ class ModelTable : ViewModel() {
                 fetchCardForPlayer()
                 fetchCardForDealer()
             }
+
+            if (_cardsPlayer.value.isNotEmpty() && _cardsDealer.value.isNotEmpty()) {
+                _gameState.value = GameState.PLAYER_TURN
+            } else {
+                Log.e("ModelTable", "Failed to deal initial cards.")
+            }
         }
     }
-
-
 
     private suspend fun fetchCardForPlayer() {
         val card = fetchCard() ?: return
         _cardsPlayer.value += card
-        Log.d(
-            "ModelTable",
-            "Player fetched card: ${card.codeCarte}. Current cards: ${_cardsPlayer.value.joinToString(", ") { it.codeCarte }}. Player's score: ${calculateScore(_cardsPlayer.value)}. Card image URL: https://420c56.drynish.synology.me${card.imageUrl}"
-        )
-
+        Log.d("ModelTable", "Player fetched card: ${card.codeCarte}. Current cards: ${_cardsPlayer.value.joinToString(", ") { it.codeCarte }}")
 
         if (calculateScore(_cardsPlayer.value) > 21) {
             Log.d("ModelTable", "Player has busted!")
@@ -106,18 +143,7 @@ class ModelTable : ViewModel() {
     private suspend fun fetchCardForDealer() {
         val card = fetchCard() ?: return
         _cardsDealer.value += card
-        Log.d("ModelTable", "Dealer fetched card: ${card.codeCarte}. Current cards: ${_cardsDealer.value.joinToString(", ") { it.codeCarte }} dealer score: ${calculateScore(_cardsDealer.value)}")
-    }
-
-    private suspend fun fetchCard(): Card? {
-        return try {
-            val deckId = _deckOfCard.value?.deckId ?: return null
-            val response = repository.getCartes(deckId, 1)
-            response.cartes.firstOrNull()
-        } catch (e: Exception) {
-            Log.e("ModelTable", "Error fetching card: ${e.message}")
-            null
-        }
+        Log.d("ModelTable", "Dealer fetched card: ${card.codeCarte}. Current cards: ${_cardsDealer.value.joinToString(", ") { it.codeCarte }}")
     }
 
     fun playerHit() {
@@ -153,22 +179,24 @@ class ModelTable : ViewModel() {
         determineWinner()
     }
 
-    private fun calculateScore(cards: List<Card>): Int {
+    fun calculateScore(cards: List<Card>): Int {
         var score = 0
         var aces = 0
 
         for (card in cards) {
             val cardValue = card.valeur
             score += when (cardValue) {
-                "1" -> { aces++; 1 }
-                "11", "12", "13" -> 10
+                "1" -> { aces++; 1 } // Ace as 1 initially
+                "11", "12", "13" -> 10 // Face cards are worth 10
                 else -> cardValue.toIntOrNull() ?: 0
             }
         }
 
-        while (score > 21 && aces > 0) {
-            score -= 10
-            aces--
+        // Adjust for Aces: convert Aces from 1 to 11 where possible
+        for (i in 0 until aces) {
+            if (score + 10 <= 21) { // If adding 10 keeps us under 21, count Ace as 11
+                score += 10
+            }
         }
 
         return score
@@ -179,14 +207,25 @@ class ModelTable : ViewModel() {
         val dealerScore = calculateScore(_cardsDealer.value)
 
         when {
-            playerScore > 21 -> _winner.value = "Dealer"
-            dealerScore > 21 -> _winner.value = "Player"
-            playerScore > dealerScore -> _winner.value = "Player"
-            dealerScore > playerScore -> _winner.value = "Dealer"
-            else ->  _winner.value = "Tie"
+            playerScore > 21 -> {
+                _winner.value = "Dealer"
+                MoneyManager.updateBalance(-MoneyManager.totalBet.value)
+            }
+            dealerScore > 21 -> {
+                _winner.value = "Player"
+                MoneyManager.updateBalance(MoneyManager.totalBet.value)
+            }
+            playerScore > dealerScore -> {
+                _winner.value = "Player"
+                MoneyManager.updateBalance(MoneyManager.totalBet.value)
+            }
+            dealerScore > playerScore -> {
+                _winner.value = "Dealer"
+                MoneyManager.updateBalance(-MoneyManager.totalBet.value)
+            }
+            else -> {
+                _winner.value = "Tie"
+            }
         }
     }
-
-
 }
-
