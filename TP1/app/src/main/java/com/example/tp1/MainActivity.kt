@@ -1,5 +1,6 @@
 package com.example.tp1
 
+import android.content.Context
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -26,7 +27,17 @@ import com.example.tp1.Views.ViewBlackJack
 import com.example.tp1.ui.theme.TP1Theme
 
 class MainActivity : ComponentActivity() {
+
+    init { app = this }
+    companion object {
+        private lateinit var app: MainActivity
+        fun getAppContext(): Context =
+            app.applicationContext
+    }
+
+
     override fun onCreate(savedInstanceState: Bundle?) {
+
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {

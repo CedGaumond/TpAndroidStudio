@@ -1,17 +1,13 @@
 package com.example.tp1.Model.api
 
+import androidx.room.Entity
+import androidx.room.PrimaryKey
 import com.google.gson.annotations.SerializedName
 
+@Entity(tableName = "cards")
 data class Card(
-    @SerializedName("code")
-    val codeCarte: String,
-
-    @SerializedName("image")
-    val imageUrl: String,
-
-    @SerializedName("rank")
-    val valeur: String,
-
-    @SerializedName("suit")
-    val signe: String
+    @PrimaryKey @SerializedName("code") val code: String,
+    @SerializedName("image") val imageUrl: String,
+    @SerializedName("rank") val value: String,
+    @SerializedName("suit") val signe: String
 )

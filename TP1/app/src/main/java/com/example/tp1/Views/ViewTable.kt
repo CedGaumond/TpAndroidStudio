@@ -3,7 +3,12 @@ package com.example.tp1.Views
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -28,22 +33,26 @@ import com.example.tp1.Model.ModelTable
 import com.example.tp1.Model.api.Card
 import com.example.tp1.R
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ViewBlackJack(
-    modelTable: ModelTable = ModelTable(),
+    modelTable: ModelTable,
     navController: NavController,
-    modelBetting: ModelBetting = ModelBetting()
+    modelBetting: ModelBetting
 ) {
+    // Collect state values
     val bet by modelBetting.totalBet.collectAsState()
     val balance by modelBetting.balance.collectAsState()
     val gameState by modelTable.gameState.collectAsState()
     val winner by modelTable.winner.collectAsState()
     val cardsDealer by modelTable.cardsDealer.collectAsState()
     val cardsPlayer by modelTable.cardsPlayer.collectAsState()
+    val cardOdds by modelTable.cardOdds.collectAsState()
 
     var showWinner by remember { mutableStateOf(false) }
     var playerStayed by remember { mutableStateOf(false) }
     var areCardsLoaded by remember { mutableStateOf(false) }
+    var isMenuOpen by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
         if (gameState == GameState.NOT_STARTED) {
@@ -52,11 +61,7 @@ fun ViewBlackJack(
     }
 
     LaunchedEffect(cardsDealer, cardsPlayer) {
-        if (cardsDealer.isNotEmpty() && cardsPlayer.isNotEmpty()) {
-            areCardsLoaded = true
-        } else {
-            areCardsLoaded = false
-        }
+        areCardsLoaded = cardsDealer.isNotEmpty() && cardsPlayer.isNotEmpty()
     }
 
     LaunchedEffect(winner) {
@@ -84,11 +89,16 @@ fun ViewBlackJack(
             Scaffold(
                 containerColor = Color.Transparent,
                 topBar = {
-
+                    TopAppBar(
+                        title = { Text("Blackjack") },
+                        navigationIcon = {
+                            IconButton(onClick = { isMenuOpen = !isMenuOpen }) {
+                                Icon(Icons.Default.Menu, contentDescription = "Menu")
+                            }
+                        }
+                    )
                 },
-                bottomBar = {
-
-                },
+                bottomBar = { /* Bottom bar content */ },
             ) { innerPadding ->
                 Box(
                     modifier = Modifier
@@ -101,17 +111,13 @@ fun ViewBlackJack(
                         horizontalAlignment = Alignment.CenterHorizontally,
                         modifier = Modifier.fillMaxSize()
                     ) {
-
-                        val playerScore = modelTable.calculateScore(cardsPlayer)
-                        val dealerScore = modelTable.calculateScore(cardsDealer)
-
-
+                        // Dealer's cards
                         CardStack(
                             cards = cardsDealer,
                             label = "Cartes du croupier",
                             playerStayed = playerStayed,
                             gameState = gameState,
-                            score = if (playerStayed) dealerScore else modelTable.calculateScore(cardsDealer.drop(1)) // Ignore the first card if player hasn't stayed
+                            score = modelTable.calculateScore(cardsDealer)
                         )
 
                         Box(
@@ -121,112 +127,38 @@ fun ViewBlackJack(
                                 .background(Color.Black)
                         )
 
-                        // Show the player's card stack
+                        // Player's cards
                         CardStack(
                             cards = cardsPlayer,
                             label = "Vos Cartes",
                             playerStayed = playerStayed,
                             gameState = gameState,
-                            score = playerScore // Pass player's score
+                            score = modelTable.calculateScore(cardsPlayer)
                         )
 
                         Spacer(modifier = Modifier.weight(1f))
 
                         // Action buttons for player
                         if (gameState == GameState.PLAYER_TURN) {
-                            Row(
-                                horizontalArrangement = Arrangement.SpaceEvenly,
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(bottom = 16.dp)
-                            ) {
-                                OutlinedButton(
-                                    onClick = { modelTable.playerHit() },
-                                    colors = ButtonDefaults.outlinedButtonColors(
-                                        containerColor = MaterialTheme.colorScheme.primary,
-                                        contentColor = MaterialTheme.colorScheme.onSecondary
-                                    )
-                                ) {
-                                    Text("Tirer")
-                                }
-
-                                OutlinedButton(
-                                    onClick = {
-                                        playerStayed = true
-                                        modelTable.playerStand()
-                                    },
-                                    colors = ButtonDefaults.outlinedButtonColors(
-                                        containerColor = MaterialTheme.colorScheme.primary,
-                                        contentColor = MaterialTheme.colorScheme.onSecondary
-                                    )
-                                ) {
-                                    Text("Rester")
-                                }
+                            ActionButtons(modelTable, playerStayed) { stayed ->
+                                playerStayed = stayed
                             }
                         }
                     }
 
                     // Winner dialog setup
-                    AnimatedVisibility(visible = showWinner) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .background(Color.Black.copy(alpha = 0.7f)),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Column(
-                                modifier = Modifier
-                                    .width(300.dp)
-                                    .background(Color.White, shape = MaterialTheme.shapes.medium)
-                                    .padding(24.dp),
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                                verticalArrangement = Arrangement.SpaceEvenly
-                            ) {
-                                Text(
-                                    text = when (winner) {
-                                        "Player" -> "Joueur Gagne"
-                                        "Dealer" -> "Croupier Gagne"
-                                        else -> "Match Nul"
-                                    },
-                                    style = MaterialTheme.typography.titleLarge.copy(color = Color.Black),
-                                    textAlign = TextAlign.Center
-                                )
-
-                                Row(
-                                    horizontalArrangement = Arrangement.SpaceEvenly,
-                                    modifier = Modifier.fillMaxWidth()
-                                ) {
-                                    OutlinedButton(
-                                        onClick = {
-                                            modelTable.resetGame()
-                                            playerStayed = false
-                                            modelTable.startGame()
-                                            showWinner = false
-                                        },
-                                        colors = ButtonDefaults.outlinedButtonColors(
-                                            containerColor = MaterialTheme.colorScheme.primary,
-                                            contentColor = MaterialTheme.colorScheme.onSecondary
-                                        )
-                                    ) {
-                                        Text("Rejouer")
-                                    }
-
-                                    OutlinedButton(
-                                        onClick = {
-                                            navController.navigate("Betting")
-                                            showWinner = false
-                                        },
-                                        colors = ButtonDefaults.outlinedButtonColors(
-                                            containerColor = MaterialTheme.colorScheme.primary,
-                                            contentColor = MaterialTheme.colorScheme.onSecondary
-                                        )
-                                    ) {
-                                        Text("Mise")
-                                    }
-                                }
-                            }
+                    if (showWinner) {
+                        WinnerDialog(winner, modelTable, navController) {
+                            showWinner = false
                         }
                     }
+
+                    // Hamburger menu
+                    HamburgerMenu(
+                        cardOdds = cardOdds,
+                        isOpen = isMenuOpen,
+                        onClose = { isMenuOpen = false }
+                    )
                 }
             }
         }
@@ -326,5 +258,149 @@ fun CardImage(card: Card, index: Int, totalCards: Int, isDealer: Boolean) {
             contentScale = ContentScale.Crop,
             modifier = Modifier.fillMaxSize()
         )
+    }
+}
+
+@Composable
+fun ActionButtons(modelTable: ModelTable, playerStayed: Boolean, onStay: (Boolean) -> Unit) {
+    Row(
+        horizontalArrangement = Arrangement.SpaceEvenly,
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(bottom = 16.dp)
+    ) {
+        OutlinedButton(onClick = { modelTable.playerHit() }) {
+            Text("Tirer")
+        }
+
+        OutlinedButton(onClick = {
+            onStay(true)
+            modelTable.playerStand()
+        }) {
+            Text("Rester")
+        }
+    }
+}
+
+@Composable
+fun WinnerDialog(winner: String?, modelTable: ModelTable, navController: NavController, onDismiss: () -> Unit) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.Black.copy(alpha = 0.7f)),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(
+            modifier = Modifier
+                .width(300.dp)
+                .background(Color.White, shape = MaterialTheme.shapes.medium)
+                .padding(24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.SpaceEvenly
+        ) {
+            Text(
+                text = when (winner) {
+                    "Player" -> "Joueur Gagne"
+                    "Dealer" -> "Croupier Gagne"
+                    else -> "Match Nul"
+                },
+                style = MaterialTheme.typography.titleLarge.copy(color = Color.Black),
+                textAlign = TextAlign.Center
+            )
+
+            Row(
+                horizontalArrangement = Arrangement.SpaceEvenly,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                OutlinedButton(
+                    onClick = {
+                        modelTable.resetGame()
+                        modelTable.startGame()
+                        onDismiss()
+                    },
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        contentColor = MaterialTheme.colorScheme.onSecondary
+                    )
+                ) {
+                    Text("Rejouer")
+                }
+
+                OutlinedButton(
+                    onClick = {
+                        navController.navigate("Betting")
+                        onDismiss()
+                    },
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        contentColor = MaterialTheme.colorScheme.onSecondary
+                    )
+                ) {
+                    Text("Mise")
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun HamburgerMenu(
+    cardOdds: Map<String, Double>,
+    isOpen: Boolean,
+    onClose: () -> Unit
+) {
+    if (isOpen) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color.Black.copy(alpha = 0.5f))
+                .clickable(onClick = onClose)
+        ) {
+            Card(
+                modifier = Modifier
+                    .fillMaxHeight()
+                    .width(250.dp)
+                    .align(Alignment.CenterStart)
+                    .clickable { /* Prevent closing when clicking inside */ }
+            ) {
+                Column(
+                    modifier = Modifier
+                        .padding(16.dp)
+                        .verticalScroll(rememberScrollState())
+                ) {
+                    Text(
+                        "Card Odds",
+                        style = MaterialTheme.typography.headlineSmall,
+                        modifier = Modifier.padding(bottom = 16.dp)
+                    )
+
+                    // Display odds for ranks 1 to 10
+                    val filteredOdds = mapOf(
+                        "1" to (cardOdds["1"] ?: 0.0),
+                        "2" to (cardOdds["2"] ?: 0.0),
+                        "3" to (cardOdds["3"] ?: 0.0),
+                        "4" to (cardOdds["4"] ?: 0.0),
+                        "5" to (cardOdds["5"] ?: 0.0),
+                        "6" to (cardOdds["6"] ?: 0.0),
+                        "7" to (cardOdds["7"] ?: 0.0),
+                        "8" to (cardOdds["8"] ?: 0.0),
+                        "9" to (cardOdds["9"] ?: 0.0),
+                        "10" to (cardOdds["10"] ?: 0.0) // Includes face cards as well
+                    )
+
+                    filteredOdds.forEach { (rank, odds) ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 4.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text(rank)
+                            Text(String.format("%.2f%%", odds))
+                        }
+                    }
+                }
+            }
+        }
     }
 }

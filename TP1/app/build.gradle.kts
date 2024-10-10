@@ -1,6 +1,7 @@
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.jetbrains.kotlin.android)
+    id("kotlin-kapt")
 }
 
 android {
@@ -50,6 +51,10 @@ android {
 }
 
 dependencies {
+    implementation(libs.androidx.room.runtime)
+    kapt(libs.androidx.room.compiler) // Use kapt for the Room compiler
+
+    // Other dependencies
     implementation(libs.coil.compose)
     implementation(libs.coil)
     implementation(libs.coil.svg)
@@ -66,9 +71,12 @@ dependencies {
     implementation(libs.androidx.material3)
     implementation(libs.androidx.navigation.compose)
     implementation(libs.volley)
-    implementation(libs.androidx.room.common)
-    implementation(libs.androidx.room.common.jvm)
-    implementation(libs.androidx.room.ktx)
+
+    // Remove the following as they may not be needed
+    // implementation(libs.androidx.room.common)
+    // implementation(libs.androidx.room.common.jvm)
+    // implementation(libs.androidx.room.ktx) // This is already covered with room.runtime
+
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)

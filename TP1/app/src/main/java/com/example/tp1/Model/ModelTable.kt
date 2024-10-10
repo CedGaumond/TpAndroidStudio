@@ -3,6 +3,9 @@ package com.example.tp1.Model
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.hockey.db.CardsDB
+import com.example.tp1.MainActivity
+
 import com.example.tp1.Model.api.Card
 import com.example.tp1.Model.api.DeckOfCard
 import com.example.tp1.Model.repository.ApiRepository
@@ -20,6 +23,20 @@ enum class GameState {
 class ModelTable : ViewModel() {
     private val repository = ApiRepository()
     private val _deckOfCard = MutableStateFlow<DeckOfCard?>(null)
+    val deckOfCard: StateFlow<DeckOfCard?> get() = _deckOfCard
+
+    private var CardsDAO = CardsDB
+        .getInstance(
+            MainActivity.getAppContext()
+        )
+
+
+
+
+
+    private val _cardOdds = MutableStateFlow<Map<String, Double>>(emptyMap())
+    val cardOdds: StateFlow<Map<String, Double>> = _cardOdds
+
     private val _cardsPlayer = MutableStateFlow<List<Card>>(emptyList())
     val cardsPlayer: StateFlow<List<Card>> get() = _cardsPlayer
 
@@ -70,7 +87,7 @@ class ModelTable : ViewModel() {
         checkAndFetchNewDeckIfNeeded()
 
         val deck = _deckOfCard.value ?: return null // Ensure deck is not null
-        val deckId = deck.deckId // Get the UUID from the current deck
+        val deckId = deck.deckId
 
         return try {
             // Fetch a card from the deck
@@ -89,6 +106,7 @@ class ModelTable : ViewModel() {
             Log.e("ModelTable", "Error fetching card: ${e.message}")
             null
         }
+
     }
 
 
@@ -131,7 +149,7 @@ class ModelTable : ViewModel() {
     private suspend fun fetchCardForPlayer() {
         val card = fetchCard() ?: return
         _cardsPlayer.value += card
-        Log.d("ModelTable", "Player fetched card: ${card.codeCarte}. Current cards: ${_cardsPlayer.value.joinToString(", ") { it.codeCarte }}")
+        Log.d("ModelTable", "Player fetched card: ${card.code}. Current cards: ${_cardsPlayer.value.joinToString(", ") { it.code }}")
 
         if (calculateScore(_cardsPlayer.value) > 21) {
             Log.d("ModelTable", "Player has busted!")
@@ -143,7 +161,7 @@ class ModelTable : ViewModel() {
     private suspend fun fetchCardForDealer() {
         val card = fetchCard() ?: return
         _cardsDealer.value += card
-        Log.d("ModelTable", "Dealer fetched card: ${card.codeCarte}. Current cards: ${_cardsDealer.value.joinToString(", ") { it.codeCarte }}")
+        Log.d("ModelTable", "Dealer fetched card: ${card.code}. Current cards: ${_cardsDealer.value.joinToString(", ") { it.code }}")
     }
 
     fun playerHit() {
@@ -168,7 +186,7 @@ class ModelTable : ViewModel() {
     }
 
     private suspend fun dealerPlay() {
-        Log.d("ModelTable", "Dealer's turn starts. Current cards: ${_cardsDealer.value.joinToString(", ") { it.codeCarte }}")
+        Log.d("ModelTable", "Dealer's turn starts. Current cards: ${_cardsDealer.value.joinToString(", ") { it.code }}")
 
         while (calculateScore(_cardsDealer.value) <= 17) {
             fetchCardForDealer()
@@ -184,7 +202,7 @@ class ModelTable : ViewModel() {
         var aces = 0
 
         for (card in cards) {
-            val cardValue = card.valeur
+            val cardValue = card.value
             score += when (cardValue) {
                 "1" -> { aces++; 1 } // Ace as 1 initially
                 "11", "12", "13" -> 10 // Face cards are worth 10
@@ -227,5 +245,29 @@ class ModelTable : ViewModel() {
                 _winner.value = "Tie"
             }
         }
+    }
+
+    fun calculateCardOdds() {
+        val totalCards = 7 * 52 // 7 decks of 52 cards each
+        val remainingCards = _deckOfCard.value?.cardLeft ?: totalCards
+        val playedCards = totalCards - remainingCards
+
+        val cardCounts = mutableMapOf(
+            "ACE" to 28, "2" to 28, "3" to 28, "4" to 28, "5" to 28,
+            "6" to 28, "7" to 28, "8" to 28, "9" to 28, "10" to 28,
+            "JACK" to 28, "QUEEN" to 28, "KING" to 28
+        )
+
+        // Subtract played cards
+        (_cardsPlayer.value + _cardsDealer.value).forEach { card ->
+            cardCounts[card.value] = cardCounts[card.value]?.minus(1) ?: 0
+        }
+
+        // Calculate odds
+        val odds = cardCounts.mapValues { (_, count) ->
+            (count.toDouble() / remainingCards) * 100
+        }
+
+        _cardOdds.value = odds
     }
 }
