@@ -23,7 +23,7 @@ class TestUIBetting {
 
     @Test
     fun TestShowBalance() {
-        val balance = 123456
+        val balance = 12664
         val modelBetting = ModelBetting()
 
 

@@ -62,7 +62,7 @@ class ModelTable : ViewModel() {
 
         viewModelScope.launch {
             try {
-                val deck = repository.getPaquetCartes(7)
+                val deck = repository.getDeckOfCard(7)
                 _deckOfCard.value = deck
                 isDeckFetched = true
                 startGame()
@@ -91,7 +91,7 @@ class ModelTable : ViewModel() {
         val deckId = deck.deckId
 
         return try {
-            val response = repository.getCartes(deckId, 1)
+            val response = repository.getACard(deckId, 1)
             calculateCardOdds()
             if (response.cartes.isNullOrEmpty()) {
                 Log.e("ModelTable", "No cards returned in the response.")
@@ -121,8 +121,8 @@ class ModelTable : ViewModel() {
         _cardsPlayer.value = emptyList()
         _cardsDealer.value = emptyList()
         _gameState.value = GameState.NOT_STARTED
-        _playerStood.value = false // Reset standing status
-        _dealerScore.value = null // Reset dealer score
+        _playerStood.value = false
+        _dealerScore.value = null
     }
 
     private fun dealInitialCards() {
@@ -190,7 +190,7 @@ class ModelTable : ViewModel() {
     private suspend fun dealerPlay() {
         Log.d("ModelTable", "Dealer's turn starts. Current cards: ${_cardsDealer.value.joinToString(", ") { it.code }}")
 
-        // Reveal only the dealer's second card if the player stood
+
         if (_playerStood.value) {
             Log.d("ModelTable", "Dealer reveals first card: ${_cardsDealer.value.firstOrNull()?.code}")
         }
@@ -234,6 +234,7 @@ class ModelTable : ViewModel() {
         }
     }
 
+
     private suspend fun insertCard(card: Card) {
         withContext(Dispatchers.IO) {
             CardsDAO.dao.insertCard(card)
@@ -248,7 +249,7 @@ class ModelTable : ViewModel() {
 
     fun calculateCardOdds() {
         viewModelScope.launch {
-            val totalCards = 7 * 52 // Total number of cards in 7 decks
+            val totalCards = 7 * 52
             val remainingCards = _deckOfCard.value?.cardLeft ?: totalCards
 
             val cardCounts = mutableMapOf(
@@ -261,10 +262,10 @@ class ModelTable : ViewModel() {
                 "7" to 28,
                 "8" to 28,
                 "9" to 28,
-                "10" to 112, // Combine counts for "10", "JACK", "QUEEN", "KING"
-                "11" to 0,   // JACK
-                "12" to 0,   // QUEEN
-                "13" to 0    // KING
+                "10" to 112,
+                "11" to 0,
+                "12" to 0,
+                "13" to 0
             )
 
             val playedCards: List<Card> = fetchPlayedCards()
@@ -285,7 +286,7 @@ class ModelTable : ViewModel() {
                 if (remainingCards > 0) {
                     (count.toDouble() / remainingCards) * 100
                 } else {
-                    0.0 // Handle division by zero
+                    0.0
                 }
             }
 

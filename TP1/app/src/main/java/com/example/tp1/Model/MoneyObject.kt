@@ -23,11 +23,11 @@ object MoneyManager {
         when {
             newTotal < MIN_BET || newTotal > MAX_BET -> {
                 _errorMessage.value = "Votre mise doit être entre $MIN_BET et $MAX_BET."
-                // No automatic reset, just inform the user
+
             }
             newTotal > _balance.value -> {
                 _errorMessage.value = "Vous ne pouvez pas parier plus que votre solde disponible."
-                // No automatic reset, just inform the user
+
             }
             else -> {
                 _totalBet.value = newTotal
@@ -38,7 +38,7 @@ object MoneyManager {
     }
 
     fun resetBet() {
-        // Restore balance to what it was before the last bet
+
         val betAmount = _totalBet.value - MIN_BET
         if (betAmount > 0) {
             _balance.value += betAmount

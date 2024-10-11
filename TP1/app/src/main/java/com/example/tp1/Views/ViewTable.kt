@@ -1,7 +1,6 @@
 package com.example.tp1.Views
 
 import android.content.res.Configuration
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -93,7 +92,7 @@ fun ViewBlackJack(
                         }
                     )
                 },
-                bottomBar = { /* Bottom bar content */ },
+                bottomBar = {  },
             ) { innerPadding ->
                 if (isLandscape) {
                     LandscapeLayout(
@@ -122,7 +121,7 @@ fun ViewBlackJack(
         if (showWinner) {
             WinnerDialog(winner, modelTable, navController) {
                 showWinner = false
-                playerStayed = false // Reset the playerStayed state
+                playerStayed = false
             }
         }
 
@@ -161,7 +160,7 @@ fun LandscapeLayout(
                 .weight(1f)
                 .fillMaxHeight(),
         ) {
-            // Fetch dealer score from the StateFlow
+
             val dealerScore by modelTable.dealerScore.collectAsState()
 
             CardStack(
@@ -169,9 +168,9 @@ fun LandscapeLayout(
                 label = "Cartes du croupier",
                 playerStayed = playerStayed,
                 gameState = gameState,
-                score = dealerScore ?: 0, // Default to 0 if score is null
+                score = dealerScore ?: 0,
                 modifier = Modifier.weight(1f),
-                showScore = true // Always show dealer's score
+                showScore = true
             )
 
             Spacer(modifier = Modifier.width(25.dp))
@@ -183,7 +182,7 @@ fun LandscapeLayout(
                 gameState = gameState,
                 score = modelTable.calculatePoints.calculateScore(cardsPlayer),
                 modifier = Modifier.weight(1f),
-                showScore = true // Show player's score as well
+                showScore = true
             )
         }
 
@@ -196,7 +195,7 @@ fun LandscapeLayout(
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             if (gameState == GameState.PLAYER_TURN) {
-                ActionButtonsVertical(modelTable, playerStayed, onStay)
+                ActionButtonsVertical(modelTable, onStay)
             }
         }
     }
@@ -228,9 +227,9 @@ fun PortraitLayout(
             label = "Cartes du croupier",
             playerStayed = playerStayed,
             gameState = gameState,
-            score = dealerScore ?: 0, // Default to 0 if score is null
+            score = dealerScore ?: 0,
             modifier = Modifier.fillMaxWidth(),
-            showScore = true // Always show dealer's score
+            showScore = true
         )
 
         Spacer(modifier = Modifier.height(16.dp))
@@ -242,7 +241,7 @@ fun PortraitLayout(
             gameState = gameState,
             score = modelTable.calculatePoints.calculateScore(cardsPlayer),
             modifier = Modifier.fillMaxWidth(),
-            showScore = true // Show player's score as well
+            showScore = true
         )
 
         Spacer(modifier = Modifier.weight(1f))
@@ -256,7 +255,7 @@ fun PortraitLayout(
 
 
 @Composable
-fun ActionButtonsVertical(modelTable: ModelTable, playerStayed: Boolean, onStay: (Boolean) -> Unit) {
+fun ActionButtonsVertical(modelTable: ModelTable,  onStay: (Boolean) -> Unit) {
     Column(
         verticalArrangement = Arrangement.spacedBy(8.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -329,7 +328,6 @@ fun CardStack(
                 Text("Pas de cartes à afficher")
             } else {
                 cards.forEachIndexed { index, card ->
-                    // Hide the dealer's first card if the player hasn't stayed
                     val isDealerFirstCardHidden = label == "Cartes du croupier" && index == 0 && !playerStayed
                     CardImage(card = card, index = index, isDealer = isDealerFirstCardHidden)
                 }
@@ -494,7 +492,7 @@ fun HamburgerMenu(
                     .fillMaxHeight()
                     .width(250.dp)
                     .align(Alignment.CenterStart)
-                    .clickable { /* Prevent closing when clicking inside */ }
+                    .clickable {  }
             ) {
                 Column(
                     modifier = Modifier
@@ -507,7 +505,7 @@ fun HamburgerMenu(
                         modifier = Modifier.padding(bottom = 16.dp)
                     )
 
-                    // Display odds for ranks 1 to 10
+
                     val filteredOdds = mapOf(
                         "1" to (cardOdds["1"] ?: 0.0),
                         "2" to (cardOdds["2"] ?: 0.0),
@@ -518,7 +516,7 @@ fun HamburgerMenu(
                         "7" to (cardOdds["7"] ?: 0.0),
                         "8" to (cardOdds["8"] ?: 0.0),
                         "9" to (cardOdds["9"] ?: 0.0),
-                        "10" to (cardOdds["10"] ?: 0.0) // Includes face cards as well
+                        "10" to (cardOdds["10"] ?: 0.0)
                     )
 
                     filteredOdds.forEach { (rank, odds) ->

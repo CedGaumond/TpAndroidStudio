@@ -11,15 +11,15 @@ class CalculatePoints {
         for (card in cards) {
             val cardValue = card.value
             score += when (cardValue) {
-                "1" -> { aces++; 1 } // Ace as 1 initially
-                "11", "12", "13" -> 10 // Face cards are worth 10
+                "1" -> { aces++; 1 }
+                "11", "12", "13" -> 10
                 else -> cardValue.toIntOrNull() ?: 0
             }
         }
 
-        // Adjust for Aces: convert Aces from 1 to 11 where possible
+
         for (i in 0 until aces) {
-            if (score + 10 <= 21) { // If adding 10 keeps us under 21, count Ace as 11
+            if (score + 10 <= 21) {
                 score += 10
             }
         }
@@ -33,19 +33,19 @@ class CalculatePoints {
         var score = 0
         var aces = 0
 
-        // Start calculating from the second card
+
         for (card in cards.drop(1)) {
             val cardValue = card.value
             score += when (cardValue) {
-                "1" -> { aces++; 1 } // Ace as 1 initially
-                "11", "12", "13" -> 10 // Face cards are worth 10
+                "1" -> { aces++; 1 }
+                "11", "12", "13" -> 10
                 else -> cardValue.toIntOrNull() ?: 0
             }
         }
 
-        // Adjust for Aces: convert Aces from 1 to 11 where possible
+
         for (i in 0 until aces) {
-            if (score + 10 <= 21) { // If adding 10 keeps us under 21, count Ace as 11
+            if (score + 10 <= 21) {
                 score += 10
             }
         }

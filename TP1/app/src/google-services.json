@@ -1,0 +1,30 @@
+{
+  "project_info": {
+    "project_number": "403825948896",
+    "firebase_url": "https://tp1blackjack-ee0c4-default-rtdb.firebaseio.com",
+    "project_id": "tp1blackjack-ee0c4",
+    "storage_bucket": "tp1blackjack-ee0c4.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:403825948896:android:2805573d33e569fd59b885",
+        "android_client_info": {
+          "package_name": "com.etudes.TP1"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCKe3qsCpHbXmTioaT_F5qFRhmlK6XH_vo"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

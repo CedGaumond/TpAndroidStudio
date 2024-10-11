@@ -8,10 +8,10 @@ class ApiRepository {
 
         private val deckCardService = RetroFitInstance.getDeckService
 
-        suspend fun getPaquetCartes(nb : Int): DeckOfCard {
+        suspend fun getDeckOfCard(nb : Int): DeckOfCard {
             return deckCardService.getDecksOfCards(nb)
         }
-        suspend fun getCartes(deckId: UUID, nbCarteApiger: Int): AnswerClass {
+        suspend fun getACard(deckId: UUID, nbCarteApiger: Int): AnswerClass {
             return deckCardService.getACardFormADeck(deckId,nbCarteApiger)
         }
 

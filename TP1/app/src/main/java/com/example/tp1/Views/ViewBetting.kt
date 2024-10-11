@@ -19,7 +19,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
+
 import androidx.navigation.NavController
 import com.example.tp1.Model.ModelBetting
 import com.example.tp1.R
@@ -144,11 +144,11 @@ fun LandscapeLayout(total: Int, modelBetting: ModelBetting, navController: NavCo
             verticalArrangement = Arrangement.Center,
             modifier = Modifier.weight(1f)
         ) {
-            // Show player total bet
+
             BettingInfo(total)
 
-            // Display for dealer, hide first card score
-            BettingInfo(total, isDealerFirstCard = true) // Hiding score for dealer's first card
+
+            BettingInfo(total, isDealerFirstCard = true)
 
             ActionButtons(modelBetting, navController)
         }
@@ -165,7 +165,7 @@ fun BettingInfo(total: Int, isDealerFirstCard: Boolean = false) {
         text = "Votre Mise",
         style = MaterialTheme.typography.headlineLarge
     )
-    if (!isDealerFirstCard) { // Show score only if it's not the dealer's first card
+    if (!isDealerFirstCard) {
         Text(
             text = "$total",
             style = MaterialTheme.typography.displayLarge
