@@ -6,7 +6,8 @@ import com.google.gson.annotations.SerializedName
 
 @Entity(tableName = "cards")
 data class Card(
-    @PrimaryKey @SerializedName("code") val code: String,
+    @PrimaryKey(autoGenerate = true) val id: Long = 0, // Unique identifier for the table
+    @SerializedName("code") val code: String,
     @SerializedName("image") val imageUrl: String,
     @SerializedName("rank") val value: String,
     @SerializedName("suit") val signe: String

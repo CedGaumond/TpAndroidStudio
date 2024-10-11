@@ -1,5 +1,6 @@
 package com.example.tp1.Views
 
+import android.content.res.Configuration
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -16,6 +17,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextAlign
@@ -32,7 +34,6 @@ import com.example.tp1.Model.ModelBetting
 import com.example.tp1.Model.ModelTable
 import com.example.tp1.Model.api.Card
 import com.example.tp1.R
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ViewBlackJack(
@@ -51,24 +52,21 @@ fun ViewBlackJack(
 
     var showWinner by remember { mutableStateOf(false) }
     var playerStayed by remember { mutableStateOf(false) }
-    var areCardsLoaded by remember { mutableStateOf(false) }
     var isMenuOpen by remember { mutableStateOf(false) }
 
+    // New state to track if the game has been initialized
+    var isGameInitialized by remember { mutableStateOf(false) }
+
+    val configuration = LocalConfiguration.current
+    val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
+
+    // Initialize the game when the composable is first created
     LaunchedEffect(Unit) {
-        if (gameState == GameState.NOT_STARTED) {
-            modelTable.startGame()
-        }
+        isGameInitialized = true
     }
 
-    LaunchedEffect(cardsDealer, cardsPlayer) {
-        areCardsLoaded = cardsDealer.isNotEmpty() && cardsPlayer.isNotEmpty()
-    }
 
-    LaunchedEffect(winner) {
-        if (winner != null) {
-            showWinner = true
-        }
-    }
+
 
     Box(modifier = Modifier.fillMaxSize()) {
         Image(
@@ -78,7 +76,7 @@ fun ViewBlackJack(
             modifier = Modifier.fillMaxSize()
         )
 
-        if (!areCardsLoaded) {
+        if (!isGameInitialized || (cardsDealer.isEmpty() && cardsPlayer.isEmpty())) {
             Box(
                 modifier = Modifier.fillMaxSize(),
                 contentAlignment = Alignment.Center
@@ -100,70 +98,192 @@ fun ViewBlackJack(
                 },
                 bottomBar = { /* Bottom bar content */ },
             ) { innerPadding ->
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(innerPadding),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Column(
-                        verticalArrangement = Arrangement.SpaceBetween,
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        modifier = Modifier.fillMaxSize()
-                    ) {
-                        // Dealer's cards
-                        CardStack(
-                            cards = cardsDealer,
-                            label = "Cartes du croupier",
-                            playerStayed = playerStayed,
-                            gameState = gameState,
-                            score = modelTable.calculateScore(cardsDealer)
-                        )
-
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(25.dp)
-                                .background(Color.Black)
-                        )
-
-                        // Player's cards
-                        CardStack(
-                            cards = cardsPlayer,
-                            label = "Vos Cartes",
-                            playerStayed = playerStayed,
-                            gameState = gameState,
-                            score = modelTable.calculateScore(cardsPlayer)
-                        )
-
-                        Spacer(modifier = Modifier.weight(1f))
-
-                        // Action buttons for player
-                        if (gameState == GameState.PLAYER_TURN) {
-                            ActionButtons(modelTable, playerStayed) { stayed ->
-                                playerStayed = stayed
-                            }
-                        }
-                    }
-
-                    // Winner dialog setup
-                    if (showWinner) {
-                        WinnerDialog(winner, modelTable, navController) {
-                            showWinner = false
-                        }
-                    }
-
-                    // Hamburger menu
-                    HamburgerMenu(
-                        cardOdds = cardOdds,
-                        isOpen = isMenuOpen,
-                        onClose = { isMenuOpen = false }
+                if (isLandscape) {
+                    LandscapeLayout(
+                        cardsDealer = cardsDealer,
+                        cardsPlayer = cardsPlayer,
+                        playerStayed = playerStayed,
+                        gameState = gameState,
+                        modelTable = modelTable,
+                        onStay = { stayed -> playerStayed = stayed },
+                        innerPadding = innerPadding
+                    )
+                } else {
+                    PortraitLayout(
+                        cardsDealer = cardsDealer,
+                        cardsPlayer = cardsPlayer,
+                        playerStayed = playerStayed,
+                        gameState = gameState,
+                        modelTable = modelTable,
+                        onStay = { stayed -> playerStayed = stayed },
+                        innerPadding = innerPadding
                     )
                 }
             }
         }
+
+        if (showWinner) {
+            WinnerDialog(winner, modelTable, navController) {
+                showWinner = false
+            }
+        }
+
+        HamburgerMenu(
+            cardOdds = cardOdds,
+            isOpen = isMenuOpen,
+            onClose = { isMenuOpen = false }
+        )
+    }
+
+    // Show winner dialog when the game is over
+    LaunchedEffect(gameState) {
+        if (gameState == GameState.GAME_OVER) {
+            showWinner = true
+        }
     }
 }
+
+@Composable
+fun LandscapeLayout(
+    cardsDealer: List<Card>,
+    cardsPlayer: List<Card>,
+    playerStayed: Boolean,
+    gameState: GameState,
+    modelTable: ModelTable,
+    onStay: (Boolean) -> Unit,
+    innerPadding: PaddingValues
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(innerPadding),
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Row(
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxHeight(),
+
+        ) {
+            CardStack(
+                cards = cardsDealer,
+                label = "Cartes du croupier",
+                playerStayed = playerStayed,
+                gameState = gameState,
+                score = modelTable.calculateScore(cardsDealer),
+                modifier = Modifier.weight(1f)
+            )
+
+
+            Box(
+                modifier = Modifier
+                    .fillMaxHeight()
+                    .width(25.dp)
+                    .background(Color.Black)
+            )
+            Spacer(modifier = Modifier.width(25.dp))
+
+            CardStack(
+                cards = cardsPlayer,
+                label = "Vos Cartes",
+                playerStayed = playerStayed,
+                gameState = gameState,
+                score = modelTable.calculateScore(cardsPlayer),
+                modifier = Modifier.weight(1f)
+            )
+        }
+
+        Column(
+            modifier = Modifier
+                .width(IntrinsicSize.Max)
+                .fillMaxHeight()
+                .padding(8.dp),
+            verticalArrangement = Arrangement.Center,
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            if (gameState == GameState.PLAYER_TURN) {
+                ActionButtonsVertical(modelTable, playerStayed, onStay)
+            }
+        }
+    }
+}
+
+@Composable
+fun PortraitLayout(
+    cardsDealer: List<Card>,
+    cardsPlayer: List<Card>,
+    playerStayed: Boolean,
+    gameState: GameState,
+    modelTable: ModelTable,
+    onStay: (Boolean) -> Unit,
+    innerPadding: PaddingValues
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(innerPadding)
+            .verticalScroll(rememberScrollState()),
+        verticalArrangement = Arrangement.SpaceBetween,
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        CardStack(
+            cards = cardsDealer,
+            label = "Cartes du croupier",
+            playerStayed = playerStayed,
+            gameState = gameState,
+            score = modelTable.calculateScore(cardsDealer),
+            modifier = Modifier.fillMaxWidth()
+        )
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(25.dp)
+                .background(Color.Black)
+        )
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        CardStack(
+            cards = cardsPlayer,
+            label = "Vos Cartes",
+            playerStayed = playerStayed,
+            gameState = gameState,
+            score = modelTable.calculateScore(cardsPlayer),
+            modifier = Modifier.fillMaxWidth()
+        )
+
+        Spacer(modifier = Modifier.weight(1f))
+
+        if (gameState == GameState.PLAYER_TURN) {
+            ActionButtons(modelTable, playerStayed, onStay)
+        }
+    }
+}
+
+@Composable
+fun ActionButtonsVertical(modelTable: ModelTable, playerStayed: Boolean, onStay: (Boolean) -> Unit) {
+    Column(
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = Modifier.padding(vertical = 16.dp)
+    ) {
+        OutlinedButton(onClick = { modelTable.playerHit() }) {
+            Text("Tirer")
+        }
+
+        OutlinedButton(onClick = {
+            onStay(true)
+            modelTable.playerStand()
+        }) {
+            Text("Rester")
+        }
+    }
+}
+
+
 
 @Composable
 fun CardStack(
@@ -267,7 +387,7 @@ fun ActionButtons(modelTable: ModelTable, playerStayed: Boolean, onStay: (Boolea
         horizontalArrangement = Arrangement.SpaceEvenly,
         modifier = Modifier
             .fillMaxWidth()
-            .padding(bottom = 16.dp)
+            .padding(vertical = 16.dp)
     ) {
         OutlinedButton(onClick = { modelTable.playerHit() }) {
             Text("Tirer")
@@ -281,6 +401,7 @@ fun ActionButtons(modelTable: ModelTable, playerStayed: Boolean, onStay: (Boolea
         }
     }
 }
+
 
 @Composable
 fun WinnerDialog(winner: String?, modelTable: ModelTable, navController: NavController, onDismiss: () -> Unit) {
