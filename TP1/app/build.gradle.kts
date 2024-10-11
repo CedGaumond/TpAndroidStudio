@@ -51,9 +51,16 @@ android {
 }
 
 dependencies {
+
+    implementation(libs.core.ktx)
+    testImplementation(libs.robolectric)
+    testImplementation(libs.junit)
+    testImplementation(libs.mockito.core)
+    testImplementation(libs.mockito.inline)
+    testImplementation(libs.kotlinx.coroutines.test)
     implementation(libs.androidx.room.runtime)
     kapt(libs.androidx.room.compiler) // Use kapt for the Room compiler
-
+    implementation ("androidx.compose.ui:ui:1.7.3")
     // Other dependencies
     implementation(libs.coil.compose)
     implementation(libs.coil)

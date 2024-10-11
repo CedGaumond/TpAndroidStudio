@@ -15,8 +15,4 @@ class ModelBetting : ViewModel() {
     fun resetBet() {
         MoneyManager.resetBet()
     }
-
-    fun updateBalance(amount: Int) {
-        MoneyManager.updateBalance(amount)
-    }
 }

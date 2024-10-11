@@ -17,22 +17,19 @@ object MoneyManager {
     private val _balance = MutableStateFlow(INITIAL_BALANCE)
     val balance: StateFlow<Int> get() = _balance
 
-    private var previousBet: Int = MIN_BET
-
     fun updateTotalBet(amount: Int) {
         val newTotal = _totalBet.value + amount
 
         when {
             newTotal < MIN_BET || newTotal > MAX_BET -> {
                 _errorMessage.value = "Votre mise doit être entre $MIN_BET et $MAX_BET."
-                resetBet()
+                // No automatic reset, just inform the user
             }
             newTotal > _balance.value -> {
                 _errorMessage.value = "Vous ne pouvez pas parier plus que votre solde disponible."
-                resetBet()
+                // No automatic reset, just inform the user
             }
             else -> {
-                previousBet = _totalBet.value
                 _totalBet.value = newTotal
                 _balance.value -= amount
                 _errorMessage.value = null
@@ -41,11 +38,19 @@ object MoneyManager {
     }
 
     fun resetBet() {
-        _balance.value += _totalBet.value - MIN_BET
+        // Restore balance to what it was before the last bet
+        val betAmount = _totalBet.value - MIN_BET
+        if (betAmount > 0) {
+            _balance.value += betAmount
+        }
         _totalBet.value = MIN_BET
     }
 
     fun updateBalance(amount: Int) {
         _balance.value += amount
+    }
+
+    fun setBalance(amount: Int) {
+        _balance.value = amount
     }
 }

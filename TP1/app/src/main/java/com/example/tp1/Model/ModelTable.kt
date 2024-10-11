@@ -5,7 +5,6 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.hockey.db.CardsDB
 import com.example.tp1.MainActivity
-
 import com.example.tp1.Model.api.Card
 import com.example.tp1.Model.api.DeckOfCard
 import com.example.tp1.Model.repository.ApiRepository
@@ -25,16 +24,11 @@ enum class GameState {
 class ModelTable : ViewModel() {
     private val repository = ApiRepository()
     private val _deckOfCard = MutableStateFlow<DeckOfCard?>(null)
+    val calculatePoints = CalculatePoints()
+
     val deckOfCard: StateFlow<DeckOfCard?> get() = _deckOfCard
 
-    private var CardsDAO = CardsDB
-        .getInstance(
-            MainActivity.getAppContext()
-        )
-
-
-
-
+    private var CardsDAO = CardsDB.getInstance(MainActivity.getAppContext())
 
     private val _cardOdds = MutableStateFlow<Map<String, Double>>(emptyMap())
     val cardOdds: StateFlow<Map<String, Double>> = _cardOdds
@@ -50,6 +44,12 @@ class ModelTable : ViewModel() {
 
     private val _winner = MutableStateFlow<String?>(null)
     val winner: StateFlow<String?> get() = _winner
+
+    private val _playerStood = MutableStateFlow(false)
+    val playerStood: StateFlow<Boolean> get() = _playerStood
+
+    private val _dealerScore = MutableStateFlow<Int?>(null) // Add dealer score state
+    val dealerScore: StateFlow<Int?> get() = _dealerScore
 
     private var isDeckFetched = false
 
@@ -74,7 +74,6 @@ class ModelTable : ViewModel() {
     }
 
     private suspend fun checkAndFetchNewDeckIfNeeded() {
-
         val deck = _deckOfCard.value
         if (deck == null || deck.cardLeft <= 1) {
             Log.d("ModelTable", "Deck is empty or not fetched, fetching a new deck.")
@@ -86,21 +85,18 @@ class ModelTable : ViewModel() {
     private suspend fun fetchCard(): Card? {
         Log.e("ModelTable", "nbcards left ${_deckOfCard.value?.cardLeft}")
 
-        // Check if we need to fetch a new deck
         checkAndFetchNewDeckIfNeeded()
 
-        val deck = _deckOfCard.value ?: return null // Ensure deck is not null
+        val deck = _deckOfCard.value ?: return null
         val deckId = deck.deckId
 
         return try {
-
-            val response = repository.getCartes(deckId, 1) // Draw a card from the deck
+            val response = repository.getCartes(deckId, 1)
             calculateCardOdds()
             if (response.cartes.isNullOrEmpty()) {
                 Log.e("ModelTable", "No cards returned in the response.")
                 return null
             }
-
 
             _deckOfCard.value = DeckOfCard(deckId, response.cartesRestantes)
 
@@ -109,13 +105,7 @@ class ModelTable : ViewModel() {
             Log.e("ModelTable", "Error fetching card: ${e.message}")
             null
         }
-
     }
-
-
-
-
-
 
     fun startGame() {
         if (_deckOfCard.value == null) {
@@ -123,7 +113,6 @@ class ModelTable : ViewModel() {
             return
         }
         resetGame()
-        _gameState.value = GameState.PLAYER_TURN
         dealInitialCards()
     }
 
@@ -132,6 +121,8 @@ class ModelTable : ViewModel() {
         _cardsPlayer.value = emptyList()
         _cardsDealer.value = emptyList()
         _gameState.value = GameState.NOT_STARTED
+        _playerStood.value = false // Reset standing status
+        _dealerScore.value = null // Reset dealer score
     }
 
     private fun dealInitialCards() {
@@ -154,10 +145,9 @@ class ModelTable : ViewModel() {
         _cardsPlayer.value += card
         Log.d("ModelTable", "Player fetched card: ${card.code}. Current cards: ${_cardsPlayer.value.joinToString(", ") { it.code }}")
 
-        // Insert the card into the database
         insertCard(card)
 
-        if (calculateScore(_cardsPlayer.value) > 21) {
+        if (calculatePoints.calculateScore(_cardsPlayer.value) > 21) {
             Log.d("ModelTable", "Player has busted!")
             _gameState.value = GameState.GAME_OVER
             determineWinner()
@@ -169,9 +159,11 @@ class ModelTable : ViewModel() {
         _cardsDealer.value += card
         Log.d("ModelTable", "Dealer fetched card: ${card.code}. Current cards: ${_cardsDealer.value.joinToString(", ") { it.code }}")
 
-        // Insert the card into the database
         insertCard(card)
+
+        _dealerScore.value = calculatePoints.calculateScoreIgnoringFirstCard(_cardsDealer.value)
     }
+
 
     fun playerHit() {
         if (_gameState.value == GameState.PLAYER_TURN) {
@@ -188,6 +180,7 @@ class ModelTable : ViewModel() {
         }
 
         Log.d("ModelTable", "Player stands. Transitioning to dealer's turn.")
+        _playerStood.value = true // Mark player as having stood
         _gameState.value = GameState.DEALER_TURN
         viewModelScope.launch {
             dealerPlay()
@@ -197,41 +190,26 @@ class ModelTable : ViewModel() {
     private suspend fun dealerPlay() {
         Log.d("ModelTable", "Dealer's turn starts. Current cards: ${_cardsDealer.value.joinToString(", ") { it.code }}")
 
-        while (calculateScore(_cardsDealer.value) <= 17) {
+        // Reveal only the dealer's second card if the player stood
+        if (_playerStood.value) {
+            Log.d("ModelTable", "Dealer reveals first card: ${_cardsDealer.value.firstOrNull()?.code}")
+        }
+
+        while (calculatePoints.calculateScore(_cardsDealer.value) <= 17) {
             fetchCardForDealer()
             Log.d("ModelTable", "Dealer draws a card. Nb cartes: ${_cardsDealer.value.size}")
         }
+
+        // Calculate dealer score
+        _dealerScore.value = calculatePoints.calculateScore(_cardsDealer.value)
 
         _gameState.value = GameState.GAME_OVER
         determineWinner()
     }
 
-    fun calculateScore(cards: List<Card>): Int {
-        var score = 0
-        var aces = 0
-
-        for (card in cards) {
-            val cardValue = card.value
-            score += when (cardValue) {
-                "1" -> { aces++; 1 } // Ace as 1 initially
-                "11", "12", "13" -> 10 // Face cards are worth 10
-                else -> cardValue.toIntOrNull() ?: 0
-            }
-        }
-
-        // Adjust for Aces: convert Aces from 1 to 11 where possible
-        for (i in 0 until aces) {
-            if (score + 10 <= 21) { // If adding 10 keeps us under 21, count Ace as 11
-                score += 10
-            }
-        }
-
-        return score
-    }
-
     private fun determineWinner() {
-        val playerScore = calculateScore(_cardsPlayer.value)
-        val dealerScore = calculateScore(_cardsDealer.value)
+        val playerScore = calculatePoints.calculateScore(_cardsPlayer.value)
+        val dealerScore = _dealerScore.value ?: 0 // Use the calculated dealer score
 
         when {
             playerScore > 21 -> {
@@ -256,28 +234,23 @@ class ModelTable : ViewModel() {
         }
     }
 
-
     private suspend fun insertCard(card: Card) {
         withContext(Dispatchers.IO) {
-            // Insert the card into the database
-            CardsDAO.dao.insertCard(card) // Make sure `insertCard` is defined in your DAO
+            CardsDAO.dao.insertCard(card)
         }
     }
 
     private suspend fun fetchPlayedCards(): List<Card> {
         return withContext(Dispatchers.IO) {
-            // Fetch played cards from your database
             CardsDAO.dao.getAllCards()
         }
     }
-
 
     fun calculateCardOdds() {
         viewModelScope.launch {
             val totalCards = 7 * 52 // Total number of cards in 7 decks
             val remainingCards = _deckOfCard.value?.cardLeft ?: totalCards
 
-            // Initialize card counts with string keys
             val cardCounts = mutableMapOf(
                 "1" to 28,  // Ace
                 "2" to 28,
@@ -296,20 +269,18 @@ class ModelTable : ViewModel() {
 
             val playedCards: List<Card> = fetchPlayedCards()
 
-            // Subtract played cards
             for (card in playedCards) {
                 when (card.value) {
                     "10" -> cardCounts["10"] = cardCounts["10"]?.minus(1) ?: 0
-                    "11" -> cardCounts["10"] = cardCounts["10"]?.minus(1) ?: 0 // Add JACK to "10"
-                    "12" -> cardCounts["10"] = cardCounts["10"]?.minus(1) ?: 0 // Add QUEEN to "10"
-                    "13" -> cardCounts["10"] = cardCounts["10"]?.minus(1) ?: 0 // Add KING to "10"
+                    "11" -> cardCounts["10"] = cardCounts["10"]?.minus(1) ?: 0
+                    "12" -> cardCounts["10"] = cardCounts["10"]?.minus(1) ?: 0
+                    "13" -> cardCounts["10"] = cardCounts["10"]?.minus(1) ?: 0
                     "1", "2", "3", "4", "5", "6", "7", "8", "9" -> {
                         cardCounts[card.value] = cardCounts[card.value]?.minus(1) ?: 0
                     }
                 }
             }
 
-            // Calculate odds
             val odds = cardCounts.mapValues { (_, count) ->
                 if (remainingCards > 0) {
                     (count.toDouble() / remainingCards) * 100
@@ -318,14 +289,7 @@ class ModelTable : ViewModel() {
                 }
             }
 
-            // Update the card odds state
             _cardOdds.value = odds
         }
     }
-
-
-
-
-
-
 }

@@ -8,7 +8,7 @@ import androidx.room.RoomDatabase
 import com.example.tp1.Model.DataBase.CardDao
 import com.example.tp1.Model.api.Card
 
-@Database(entities = [Card::class], version = 34, exportSchema = false)
+@Database(entities = [Card::class], version = 35, exportSchema = false)
 abstract class CardsDB : RoomDatabase() {
     abstract val dao: CardDao
 

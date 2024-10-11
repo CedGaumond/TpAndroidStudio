@@ -19,6 +19,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -34,6 +35,8 @@ import com.example.tp1.Model.ModelBetting
 import com.example.tp1.Model.ModelTable
 import com.example.tp1.Model.api.Card
 import com.example.tp1.R
+
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ViewBlackJack(
@@ -53,20 +56,14 @@ fun ViewBlackJack(
     var showWinner by remember { mutableStateOf(false) }
     var playerStayed by remember { mutableStateOf(false) }
     var isMenuOpen by remember { mutableStateOf(false) }
-
-    // New state to track if the game has been initialized
     var isGameInitialized by remember { mutableStateOf(false) }
 
     val configuration = LocalConfiguration.current
     val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
 
-    // Initialize the game when the composable is first created
     LaunchedEffect(Unit) {
         isGameInitialized = true
     }
-
-
-
 
     Box(modifier = Modifier.fillMaxSize()) {
         Image(
@@ -125,6 +122,7 @@ fun ViewBlackJack(
         if (showWinner) {
             WinnerDialog(winner, modelTable, navController) {
                 showWinner = false
+                playerStayed = false // Reset the playerStayed state
             }
         }
 
@@ -135,7 +133,6 @@ fun ViewBlackJack(
         )
     }
 
-    // Show winner dialog when the game is over
     LaunchedEffect(gameState) {
         if (gameState == GameState.GAME_OVER) {
             showWinner = true
@@ -163,24 +160,20 @@ fun LandscapeLayout(
             modifier = Modifier
                 .weight(1f)
                 .fillMaxHeight(),
-
         ) {
+            // Fetch dealer score from the StateFlow
+            val dealerScore by modelTable.dealerScore.collectAsState()
+
             CardStack(
                 cards = cardsDealer,
                 label = "Cartes du croupier",
                 playerStayed = playerStayed,
                 gameState = gameState,
-                score = modelTable.calculateScore(cardsDealer),
-                modifier = Modifier.weight(1f)
+                score = dealerScore ?: 0, // Default to 0 if score is null
+                modifier = Modifier.weight(1f),
+                showScore = true // Always show dealer's score
             )
 
-
-            Box(
-                modifier = Modifier
-                    .fillMaxHeight()
-                    .width(25.dp)
-                    .background(Color.Black)
-            )
             Spacer(modifier = Modifier.width(25.dp))
 
             CardStack(
@@ -188,8 +181,9 @@ fun LandscapeLayout(
                 label = "Vos Cartes",
                 playerStayed = playerStayed,
                 gameState = gameState,
-                score = modelTable.calculateScore(cardsPlayer),
-                modifier = Modifier.weight(1f)
+                score = modelTable.calculatePoints.calculateScore(cardsPlayer),
+                modifier = Modifier.weight(1f),
+                showScore = true // Show player's score as well
             )
         }
 
@@ -226,22 +220,17 @@ fun PortraitLayout(
         verticalArrangement = Arrangement.SpaceBetween,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
+        // Fetch dealer score from the StateFlow
+        val dealerScore by modelTable.dealerScore.collectAsState()
+
         CardStack(
             cards = cardsDealer,
             label = "Cartes du croupier",
             playerStayed = playerStayed,
             gameState = gameState,
-            score = modelTable.calculateScore(cardsDealer),
-            modifier = Modifier.fillMaxWidth()
-        )
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(25.dp)
-                .background(Color.Black)
+            score = dealerScore ?: 0, // Default to 0 if score is null
+            modifier = Modifier.fillMaxWidth(),
+            showScore = true // Always show dealer's score
         )
 
         Spacer(modifier = Modifier.height(16.dp))
@@ -251,8 +240,9 @@ fun PortraitLayout(
             label = "Vos Cartes",
             playerStayed = playerStayed,
             gameState = gameState,
-            score = modelTable.calculateScore(cardsPlayer),
-            modifier = Modifier.fillMaxWidth()
+            score = modelTable.calculatePoints.calculateScore(cardsPlayer),
+            modifier = Modifier.fillMaxWidth(),
+            showScore = true // Show player's score as well
         )
 
         Spacer(modifier = Modifier.weight(1f))
@@ -263,6 +253,8 @@ fun PortraitLayout(
     }
 }
 
+
+
 @Composable
 fun ActionButtonsVertical(modelTable: ModelTable, playerStayed: Boolean, onStay: (Boolean) -> Unit) {
     Column(
@@ -270,21 +262,34 @@ fun ActionButtonsVertical(modelTable: ModelTable, playerStayed: Boolean, onStay:
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = Modifier.padding(vertical = 16.dp)
     ) {
-        OutlinedButton(onClick = { modelTable.playerHit() }) {
+        OutlinedButton(
+
+            onClick = {  modelTable.playerHit()},
+            colors = ButtonDefaults.outlinedButtonColors(
+                containerColor = Color(0xFF4CAF50),
+                contentColor = MaterialTheme.colorScheme.onSecondary
+
+            )
+
+        ) {
             Text("Tirer")
         }
+        Spacer(modifier = Modifier.height(25.dp))
+        OutlinedButton(
 
-        OutlinedButton(onClick = {
-            onStay(true)
-            modelTable.playerStand()
-        }) {
+            onClick = {  onStay(true)
+                modelTable.playerStand()},
+            colors = ButtonDefaults.outlinedButtonColors(
+                containerColor = Color(0xFFFF0000),
+                contentColor = MaterialTheme.colorScheme.onSecondary
+
+            )
+
+        ) {
             Text("Rester")
         }
     }
 }
-
-
-
 @Composable
 fun CardStack(
     cards: List<Card>,
@@ -292,7 +297,8 @@ fun CardStack(
     playerStayed: Boolean,
     gameState: GameState,
     score: Int,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    showScore: Boolean
 ) {
     Column(
         horizontalAlignment = Alignment.Start,
@@ -304,13 +310,14 @@ fun CardStack(
             modifier = Modifier.padding(bottom = 8.dp)
         )
 
-        // Display the score
-        Text(
-            text = "Score: $score",
-            color = Color.Red,
-            fontSize = 32.sp,
-            modifier = Modifier.padding(bottom = 8.dp)
-        )
+        if (showScore) {
+            Text(
+                text = "Score: $score",
+                color = Color.Red,
+                fontSize = 32.sp,
+                modifier = Modifier.padding(bottom = 8.dp)
+            )
+        }
 
         Box(
             modifier = Modifier
@@ -319,19 +326,12 @@ fun CardStack(
             contentAlignment = Alignment.Center
         ) {
             if (cards.isEmpty()) {
-                if (gameState == GameState.PLAYER_TURN || gameState == GameState.DEALER_TURN) {
-                    Text("Tirer des cartes...")
-                } else {
-                    Text("Pas de cartes à afficher")
-                }
+                Text("Pas de cartes à afficher")
             } else {
                 cards.forEachIndexed { index, card ->
-                    CardImage(
-                        card = card,
-                        index = index,
-                        totalCards = cards.size,
-                        isDealer = label == "Cartes du croupier" && (index == 0 && !playerStayed && gameState != GameState.GAME_OVER)
-                    )
+                    // Hide the dealer's first card if the player hasn't stayed
+                    val isDealerFirstCardHidden = label == "Cartes du croupier" && index == 0 && !playerStayed
+                    CardImage(card = card, index = index, isDealer = isDealerFirstCardHidden)
                 }
             }
         }
@@ -339,7 +339,7 @@ fun CardStack(
 }
 
 @Composable
-fun CardImage(card: Card, index: Int, totalCards: Int, isDealer: Boolean) {
+fun CardImage(card: Card, index: Int, isDealer: Boolean) {
     val cardWidth = 120.dp
     val cardHeight = 180.dp
     val horizontalOffset = 30.dp
@@ -348,7 +348,7 @@ fun CardImage(card: Card, index: Int, totalCards: Int, isDealer: Boolean) {
         rememberAsyncImagePainter(
             model = ImageRequest.Builder(LocalContext.current)
                 .decoderFactory(SvgDecoder.Factory())
-                .data("https://420c56.drynish.synology.me/static/back.svg")
+                .data("https://420c56.drynish.synology.me/static/back.svg") // URL for the card back
                 .size(240, 360)
                 .build()
         )
@@ -356,7 +356,7 @@ fun CardImage(card: Card, index: Int, totalCards: Int, isDealer: Boolean) {
         rememberAsyncImagePainter(
             model = ImageRequest.Builder(LocalContext.current)
                 .decoderFactory(SvgDecoder.Factory())
-                .data("https://420c56.drynish.synology.me${card.imageUrl}")
+                .data("https://420c56.drynish.synology.me${card.imageUrl}") // URL for the actual card
                 .size(240, 360)
                 .build()
         )
@@ -371,6 +371,7 @@ fun CardImage(card: Card, index: Int, totalCards: Int, isDealer: Boolean) {
             .drawBehind {
                 drawRect(Color.White)
             }
+            .testTag(card.imageUrl)
     ) {
         Image(
             painter = painter,
@@ -381,6 +382,7 @@ fun CardImage(card: Card, index: Int, totalCards: Int, isDealer: Boolean) {
     }
 }
 
+
 @Composable
 fun ActionButtons(modelTable: ModelTable, playerStayed: Boolean, onStay: (Boolean) -> Unit) {
     Row(
@@ -389,19 +391,28 @@ fun ActionButtons(modelTable: ModelTable, playerStayed: Boolean, onStay: (Boolea
             .fillMaxWidth()
             .padding(vertical = 16.dp)
     ) {
-        OutlinedButton(onClick = { modelTable.playerHit() }) {
+
+        OutlinedButton(
+            onClick = { modelTable.playerHit() },
+            colors = ButtonDefaults.outlinedButtonColors(
+                containerColor = Color(0xFF4CAF50),
+                contentColor = MaterialTheme.colorScheme.onSecondary
+            )
+        ) {
             Text("Tirer")
         }
 
-        OutlinedButton(onClick = {
-            onStay(true)
-            modelTable.playerStand()
-        }) {
+        OutlinedButton(
+            onClick = { onStay(true); modelTable.playerStand() },
+            colors = ButtonDefaults.outlinedButtonColors(
+                containerColor = Color(0xFFFF0000),
+                contentColor = MaterialTheme.colorScheme.onSecondary
+            )
+        ) {
             Text("Rester")
         }
     }
 }
-
 
 @Composable
 fun WinnerDialog(winner: String?, modelTable: ModelTable, navController: NavController, onDismiss: () -> Unit) {
@@ -463,6 +474,7 @@ fun WinnerDialog(winner: String?, modelTable: ModelTable, navController: NavCont
         }
     }
 }
+
 
 @Composable
 fun HamburgerMenu(
